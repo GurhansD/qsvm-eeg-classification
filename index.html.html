@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quantum-Inspired BCI · SSEF 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist+Mono:wght@300;400;500;700&family=Geist:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+:root{
+  --ink:#08090c;
+  --ink2:#0d1017;
+  --ink3:#12161f;
+  --cyan:#00e5ff;
+  --violet:#8b5cf6;
+  --green:#10b981;
+  --amber:#f59e0b;
+  --red:#ef4444;
+  --text:#e8e6e1;
+  --text-mid:#7a7872;
+  --text-dim:#3a3835;
+  --border:rgba(232,230,225,0.07);
+  --border2:rgba(232,230,225,0.13);
+}
+body{background:var(--ink);color:var(--text);font-family:'Geist',sans-serif;overflow-x:hidden;cursor:none}
+
+/* grain overlay */
+body::after{
+  content:'';position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity:.025;pointer-events:none;z-index:9990
+}
+
+/* ── CURSOR ── */
+#js-cursor{position:fixed;width:8px;height:8px;background:var(--cyan);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:width .3s,height .3s;mix-blend-mode:difference}
+#js-cring{position:fixed;width:34px;height:34px;border:1px solid rgba(0,229,255,.35);border-radius:50%;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:width .4s,height .4s,border-color .3s}
+
+/* ── NAV ── */
+nav{position:fixed;top:0;left:0;right:0;z-index:1000;padding:20px 52px;display:flex;align-items:center;justify-content:space-between;transition:background .4s,border-color .4s;border-bottom:1px solid transparent}
+nav.scrolled{background:rgba(8,9,12,.93);backdrop-filter:blur(20px);border-color:var(--border)}
+.nav-logo{font-family:'Geist Mono',monospace;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mid)}
+.nav-logo strong{color:var(--cyan);font-weight:400}
+.nav-links{display:flex;gap:36px}
+.nav-links a{font-family:'Geist Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);text-decoration:none;transition:color .2s}
+.nav-links a:hover{color:var(--text)}
+
+/* ── HERO ── */
+.hero{min-height:100vh;display:flex;flex-direction:column;justify-content:flex-end;padding:0 52px 88px;position:relative;overflow:hidden}
+#eeg-canvas{position:absolute;inset:0;opacity:.16;display:block}
+.hero-vignette-bottom{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 90% 55% at 50% 110%,transparent 30%,var(--ink) 100%);z-index:1;pointer-events:none}
+.hero-vignette-top{position:absolute;top:0;left:0;right:0;height:35%;background:linear-gradient(180deg,var(--ink),transparent);z-index:1;pointer-events:none}
+.hero-content{position:relative;z-index:2;max-width:1100px}
+.hero-eyebrow{font-family:'Geist Mono',monospace;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--cyan);margin-bottom:28px;display:flex;align-items:center;gap:14px}
+.hero-eyebrow::before{content:'';width:28px;height:1px;background:var(--cyan)}
+.hero h1{font-family:'Instrument Serif',serif;font-size:clamp(44px,7vw,94px);line-height:1;letter-spacing:-.025em;margin-bottom:40px}
+.hero h1 em{font-style:italic;color:var(--cyan)}
+.hero h1 .dim{color:var(--text-mid)}
+.hero-meta{display:flex;align-items:center;gap:44px;flex-wrap:wrap}
+.hero-stat-num{font-family:'Instrument Serif',serif;font-size:44px;line-height:1;color:var(--text)}
+.hero-stat-num .unit{font-size:26px;color:var(--cyan)}
+.hero-stat-label{font-family:'Geist Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);margin-top:4px}
+.hero-divider{width:1px;height:52px;background:var(--border2);flex-shrink:0}
+.scroll-hint{position:absolute;bottom:40px;right:52px;z-index:2;font-family:'Geist Mono',monospace;font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-dim);display:flex;align-items:center;gap:10px;animation:bob 2s ease-in-out infinite}
+.scroll-hint::after{content:'';width:1px;height:28px;background:linear-gradient(180deg,var(--text-dim),transparent)}
+@keyframes bob{0%,100%{transform:translateY(0);opacity:.5}50%{transform:translateY(5px);opacity:1}}
+
+hr.rule{border:none;border-top:1px solid var(--border)}
+
+/* ── SECTIONS ── */
+.sec{max-width:1100px;margin:0 auto;padding:120px 52px}
+.sec-num{font-family:'Geist Mono',monospace;font-size:11px;letter-spacing:.2em;color:var(--text-dim);margin-bottom:20px;display:flex;align-items:center;gap:16px}
+.sec-num::after{content:'';flex:1;height:1px;background:var(--border)}
+.sec h2{font-family:'Instrument Serif',serif;font-size:clamp(32px,4.5vw,62px);line-height:1.04;letter-spacing:-.02em;margin-bottom:18px}
+.sec h2 em{font-style:italic;color:var(--cyan)}
+.sec-lead{font-size:18px;color:var(--text-mid);max-width:640px;line-height:1.7;font-weight:300;margin-bottom:72px}
+
+/* ── PROBLEM GRID ── */
+.prob-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:64px}
+.prob-block{background:var(--ink2);padding:44px 36px;transition:background .3s}
+.prob-block:hover{background:var(--ink3)}
+.prob-num{font-family:'Geist Mono',monospace;font-size:10px;letter-spacing:.15em;color:var(--text-dim);margin-bottom:28px}
+.prob-block h3{font-family:'Instrument Serif',serif;font-size:24px;margin-bottom:14px;line-height:1.15}
+.prob-block p{font-size:14px;color:var(--text-mid);line-height:1.8}
+
+/* ── CALLOUT ── */
+.callout{border-left:2px solid var(--cyan);padding:28px 44px;background:rgba(0,229,255,.03)}
+.callout p{font-family:'Instrument Serif',serif;font-size:clamp(18px,2.2vw,26px);line-height:1.5}
+.callout p strong{color:var(--cyan);font-style:italic;font-weight:400}
+
+/* ── METHODOLOGY ── */
+.method-layout{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:start}
+.steps-list{display:flex;flex-direction:column}
+.step-item{display:flex;gap:24px;padding:28px 0;border-bottom:1px solid var(--border)}
+.step-item:last-child{border-bottom:none}
+.step-num{font-family:'Geist Mono',monospace;font-size:11px;color:var(--text-dim);padding-top:3px;flex-shrink:0;width:28px}
+.step-item h3{font-size:15px;font-weight:600;margin-bottom:8px}
+.step-item p{font-size:14px;color:var(--text-mid);line-height:1.75}
+
+/* ── TAGS ── */
+.tag{display:inline-block;font-family:'Geist Mono',monospace;font-size:10px;letter-spacing:.08em;padding:3px 8px;border-radius:2px;margin-top:10px;margin-right:4px}
+.tag-c{background:rgba(0,229,255,.07);color:var(--cyan);border:1px solid rgba(0,229,255,.18)}
+.tag-v{background:rgba(139,92,246,.07);color:var(--violet);border:1px solid rgba(139,92,246,.18)}
+.tag-g{background:rgba(16,185,129,.07);color:var(--green);border:1px solid rgba(16,185,129,.18)}
+.tag-a{background:rgba(245,158,11,.07);color:var(--amber);border:1px solid rgba(245,158,11,.18)}
+
+/* ── DATASET PANEL ── */
+.data-panel{background:var(--ink2);border:1px solid var(--border);padding:36px;position:sticky;top:100px}
+.data-panel h4{font-family:'Geist Mono',monospace;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-dim);margin-bottom:24px}
+.data-row{display:flex;justify-content:space-between;align-items:baseline;padding:11px 0;border-bottom:1px solid var(--border);font-size:14px}
+.data-row:last-of-type{border-bottom:none}
+.data-key{color:var(--text-dim)}
+.data-val{font-family:'Geist Mono',monospace;font-size:13px;color:var(--cyan)}
+.criteria-list{margin-top:28px;padding-top:28px;border-top:1px solid var(--border)}
+.criteria-list h4{font-family:'Geist Mono',monospace;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-dim);margin-bottom:16px}
+.crit-row{display:flex;gap:10px;margin-bottom:12px;font-size:13px}
+.crit-check{color:var(--green);flex-shrink:0}
+.crit-text{color:var(--text-mid);line-height:1.65}
+
+/* ── RESULTS ── */
+.results-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.chart-panel{background:var(--ink2);border:1px solid var(--border);padding:32px;transition:border-color .3s}
+.chart-panel:hover{border-color:var(--border2)}
+.chart-full{grid-column:1/-1}
+.chart-label{font-family:'Geist Mono',monospace;font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-dim);margin-bottom:28px;display:flex;align-items:center;justify-content:space-between}
+.chart-label span{background:rgba(0,229,255,.07);color:var(--cyan);padding:3px 8px;font-size:10px;border:1px solid rgba(0,229,255,.14)}
+
+/* ── METRIC BARS ── */
+.metric-bars{display:flex;flex-direction:column;gap:14px}
+.bar-row{display:grid;grid-template-columns:110px 1fr 50px;gap:10px;align-items:center}
+.bar-row.highlight .bar-name,.bar-row.highlight .bar-val{color:var(--cyan)}
+.bar-name{font-family:'Geist Mono',monospace;font-size:11px;color:var(--text-mid)}
+.bar-track{height:5px;background:rgba(255,255,255,.04);border-radius:1px;overflow:hidden}
+.bar-fill{height:100%;border-radius:1px;width:0;transition:width 1.6s cubic-bezier(.16,1,.3,1)}
+.bar-fill.f-hero{background:linear-gradient(90deg,var(--violet),var(--cyan))}
+.bar-fill.f-close{background:rgba(245,158,11,.55)}
+.bar-fill.f-other{background:rgba(90,110,140,.45)}
+.bar-val{font-family:'Geist Mono',monospace;font-size:12px;color:var(--text-mid);text-align:right}
+
+/* ── CONFUSION MATRIX ── */
+.cm-layout{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+.cm-title{font-size:13px;font-weight:500;margin-bottom:14px;text-align:center}
+.cm-grid{display:grid;grid-template-columns:56px 1fr 1fr;gap:3px;font-family:'Geist Mono',monospace}
+.cm-head{font-size:10px;color:var(--text-dim);display:flex;align-items:center;justify-content:center;letter-spacing:.05em;padding:6px 4px}
+.cm-cell{padding:16px 6px;border-radius:2px;text-align:center;font-size:20px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:3px;transition:transform .2s;cursor:default}
+.cm-cell:hover{transform:scale(1.04)}
+.cm-lbl{font-size:9px;letter-spacing:.07em;opacity:.65;font-weight:400}
+.c-tp{background:rgba(16,185,129,.14);color:var(--green)}
+.c-tn{background:rgba(0,229,255,.09);color:var(--cyan)}
+.c-fp{background:rgba(245,158,11,.10);color:var(--amber)}
+.c-fn{background:rgba(239,68,68,.16);color:var(--red)}
+.c-tp-d{background:rgba(16,185,129,.04);color:rgba(16,185,129,.38)}
+.c-tn-d{background:rgba(0,229,255,.04);color:rgba(0,229,255,.35)}
+.c-fp-d{background:rgba(245,158,11,.05);color:rgba(245,158,11,.38)}
+.c-fn-d{background:rgba(239,68,68,.07);color:rgba(239,68,68,.38)}
+.cm-note{margin-top:10px;font-size:11px;font-family:'Geist Mono',monospace;text-align:center;padding:7px;border-top:1px solid var(--border)}
+
+/* ── ROBUSTNESS ── */
+.rob-chart{display:flex;gap:16px;align-items:flex-end;height:190px;padding-bottom:36px;justify-content:center}
+.rob-group{display:flex;flex-direction:column;align-items:center;flex:1}
+.rob-bars-wrap{display:flex;gap:4px;align-items:flex-end;height:145px;width:100%;justify-content:center}
+.rob-bar{width:26px;border-radius:2px 2px 0 0;position:relative;transition:height 1.4s cubic-bezier(.16,1,.3,1)}
+.rob-q{background:linear-gradient(180deg,var(--cyan),var(--violet))}
+.rob-c{background:rgba(90,110,140,.35)}
+.rob-bar-val{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-family:'Geist Mono',monospace;font-size:9px;white-space:nowrap}
+.rob-q .rob-bar-val{color:var(--cyan)}
+.rob-c .rob-bar-val{color:var(--text-dim)}
+.rob-group-lbl{font-family:'Geist Mono',monospace;font-size:10px;color:var(--text-dim);margin-top:8px;text-align:center}
+
+/* ── RADAR ── */
+.radar-wrap{display:flex;flex-direction:column;align-items:center;gap:20px}
+.radar-legend{display:flex;gap:24px}
+.legend-item{display:flex;align-items:center;gap:7px;font-family:'Geist Mono',monospace;font-size:11px;color:var(--text-mid)}
+.legend-dot{width:8px;height:8px;border-radius:50%}
+
+/* ── IMPACT ── */
+.impact-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:64px}
+.impact-block{background:var(--ink2);padding:44px 36px;transition:background .3s}
+.impact-block:hover{background:var(--ink3)}
+.impact-icon{font-size:26px;margin-bottom:20px;display:block}
+.impact-block h3{font-family:'Instrument Serif',serif;font-size:22px;margin-bottom:12px;line-height:1.15}
+.impact-block p{font-size:14px;color:var(--text-mid);line-height:1.8;margin-bottom:14px}
+
+/* ── BIG STATS ── */
+.big-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:64px}
+.big-stat{background:var(--ink2);padding:40px 32px;text-align:center}
+.big-stat-n{font-family:'Instrument Serif',serif;font-size:52px;line-height:1;margin-bottom:8px}
+.big-stat-l{font-family:'Geist Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim)}
+
+/* ── TEAM ── */
+.team-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:48px}
+.team-card{background:var(--ink2);border:1px solid var(--border);padding:36px;transition:border-color .3s,transform .3s}
+.team-card:hover{border-color:var(--border2);transform:translateY(-4px)}
+.team-init{font-family:'Instrument Serif',serif;font-size:44px;color:var(--cyan);margin-bottom:20px;line-height:1}
+.team-name{font-size:17px;font-weight:600;margin-bottom:4px}
+.team-role{font-family:'Geist Mono',monospace;font-size:11px;letter-spacing:.07em;color:var(--text-dim)}
+.team-school{font-size:13px;color:var(--text-mid);margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+
+.tags-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:40px}
+
+/* ── FOOTER ── */
+footer{border-top:1px solid var(--border);padding:44px 52px;display:flex;align-items:center;justify-content:space-between}
+.footer-logo{font-family:'Geist Mono',monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim)}
+.footer-logo strong{color:var(--cyan);font-weight:400}
+.footer-right{font-family:'Geist Mono',monospace;font-size:11px;color:var(--text-dim);text-align:right;line-height:1.8}
+
+/* ── FADE UP ANIMATION ── */
+.fade-up{opacity:0;transform:translateY(36px);transition:opacity .8s ease,transform .8s ease}
+.fade-up.visible{opacity:1;transform:translateY(0)}
+.fade-up:nth-child(2){transition-delay:.1s}
+.fade-up:nth-child(3){transition-delay:.2s}
+.fade-up:nth-child(4){transition-delay:.3s}
+
+/* ── PARTICLE CANVAS ── */
+#particle-canvas{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.4}
+
+/* ── RESPONSIVE ── */
+@media(max-width:880px){
+  .prob-grid,.impact-grid{grid-template-columns:1fr}
+  .results-grid,.method-layout{grid-template-columns:1fr}
+  .chart-full{grid-column:1}
+  .big-stats{grid-template-columns:1fr 1fr}
+  .team-grid{grid-template-columns:1fr}
+  .cm-layout{grid-template-columns:1fr}
+  .hero,.sec,footer{padding-left:24px;padding-right:24px}
+  nav{padding:16px 24px}
+  .nav-links{display:none}
+  .hero-meta{gap:20px}
+  .hero-divider{display:none}
+}
+</style>
+</head>
+<body>
+
+<div id="js-cursor"></div>
+<div id="js-cring"></div>
+<canvas id="particle-canvas"></canvas>
+
+<nav id="main-nav">
+  <div class="nav-logo"><strong>QSVM</strong> · BCI Research · SSEF 2026</div>
+  <div class="nav-links">
+    <a href="#problem">Problem</a>
+    <a href="#methodology">Methodology</a>
+    <a href="#results">Results</a>
+    <a href="#impact">Impact</a>
+    <a href="#team">Team</a>
+  </div>
+</nav>
+
+<!-- ════════════════ HERO ════════════════ -->
+<section class="hero" id="top">
+  <canvas id="eeg-canvas"></canvas>
+  <div class="hero-vignette-bottom"></div>
+  <div class="hero-vignette-top"></div>
+
+  <div class="hero-content">
+    <div class="hero-eyebrow">71st Florida SSEF · Intelligent Machines, Robotics &amp; Systems Software · Lakeland, FL</div>
+    <h1>
+      <em>Quantum-Inspired</em><br>
+      <span class="dim">Machine Learning</span><br>
+      for Brain-Computer<br>
+      Interfaces
+    </h1>
+    <div class="hero-meta">
+      <div>
+        <div class="hero-stat-num"><span class="js-count" data-target="73.4" data-dec="1">0</span><span class="unit">%</span></div>
+        <div class="hero-stat-label">QSVM Accuracy</div>
+      </div>
+      <div class="hero-divider"></div>
+      <div>
+        <div class="hero-stat-num"><span class="js-count" data-target="91.3" data-dec="1">0</span><span class="unit">%</span></div>
+        <div class="hero-stat-label">Motor Recall</div>
+      </div>
+      <div class="hero-divider"></div>
+      <div>
+        <div class="hero-stat-num">+<span class="js-count" data-target="8.8" data-dec="1">0</span><span class="unit">pp</span></div>
+        <div class="hero-stat-label">vs Classical SVM</div>
+      </div>
+      <div class="hero-divider"></div>
+      <div>
+        <div class="hero-stat-num"><span class="js-count" data-target="109" data-dec="0">0</span></div>
+        <div class="hero-stat-label">Subjects · PhysioNet</div>
+      </div>
+    </div>
+  </div>
+  <div class="scroll-hint">Scroll</div>
+</section>
+
+<hr class="rule">
+
+<!-- ════════════════ PROBLEM ════════════════ -->
+<section class="sec" id="problem">
+  <div class="sec-num fade-up">01 · The Problem</div>
+  <h2 class="fade-up">BCIs are <em>failing</em><br>the patients who need them</h2>
+  <p class="sec-lead fade-up">Every 40 seconds someone has a stroke. Many lose all voluntary movement. Brain-computer interfaces exist to give those people their voice back — but the decoding layer keeps failing.</p>
+
+  <div class="prob-grid">
+    <div class="prob-block fade-up">
+      <div class="prob-num">FAILURE MODE 01</div>
+      <h3>Low Signal,<br>High Noise</h3>
+      <p>Scalp EEG captures millions of neurons firing through bone and tissue simultaneously. The signal-to-noise ratio is fundamentally poor — non-stationary, noisy, and highly variable across recording sessions and individuals.</p>
+    </div>
+    <div class="prob-block fade-up">
+      <div class="prob-num">FAILURE MODE 02</div>
+      <h3>Inter-Subject<br>Variability</h3>
+      <p>No two brains produce the same EEG signature. Classical models trained on one person fail on another. Fixed feature spaces cannot adapt to the biological diversity of human neural architecture.</p>
+    </div>
+    <div class="prob-block fade-up">
+      <div class="prob-num">FAILURE MODE 03</div>
+      <h3>Missing the<br>Interference</h3>
+      <p>Current models treat each EEG channel independently. But the brain works like an orchestra — 64 channels interfering constructively and destructively. Classical kernels hear one violin. We needed to hear all 64.</p>
+    </div>
+  </div>
+
+  <div class="callout fade-up">
+    <p>Classical SVMs achieve <strong>~64.6% accuracy</strong> on motor imagery classification — insufficient for a patient whose wheelchair depends on every correct command. When a BCI fails, a paralyzed patient cannot move. <strong>91.3% recall isn't a metric. It's a lifeline.</strong></p>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ════════════════ METHODOLOGY ════════════════ -->
+<section class="sec" id="methodology">
+  <div class="sec-num fade-up">02 · Engineering Methodology</div>
+  <h2 class="fade-up">The Born Rule,<br><em>applied to neurons</em></h2>
+  <p class="sec-lead fade-up">No quantum computer required. We applied interference-based probability mathematics from quantum physics as a kernel function — measuring how EEG signals interact, not just how far apart they are.</p>
+
+  <div class="method-layout">
+    <div class="steps-list">
+      <div class="step-item fade-up">
+        <div class="step-num">01</div>
+        <div>
+          <h3>Dataset Acquisition</h3>
+          <p>PhysioNet EEG Motor Movement/Imagery Dataset. 109 subjects, 654 recordings segmented into approximately 9,500 trials. Imagined left vs. right hand movement. 64 channels at 160 Hz. Fully de-identified public data.</p>
+          <span class="tag tag-c">PhysioNet · 109 subjects · ~9,500 trials</span>
+        </div>
+      </div>
+      <div class="step-item fade-up">
+        <div class="step-num">02</div>
+        <div>
+          <h3>Signal Preprocessing</h3>
+          <p>Band-pass filtering at 8–30 Hz to isolate mu and beta motor rhythms. ICA artifact removal. 5-fold stratified cross-validation applied uniformly. Identical preprocessing pipeline across all 9 benchmark models.</p>
+          <span class="tag tag-v">8–30 Hz · MNE-Python · 5-Fold CV</span>
+        </div>
+      </div>
+      <div class="step-item fade-up">
+        <div class="step-num">03</div>
+        <div>
+          <h3>Quantum-Inspired Kernel</h3>
+          <p>Classical kernels ask: <em>how far apart are two signals?</em> Our quantum kernel asks: <em>how much do they interfere?</em> Welch's method extracts PSD across α, β, and μ bands. The Born Rule maps these into a quantum-inspired similarity space that captures non-linear neural interference patterns classical kernels cannot represent.</p>
+          <span class="tag tag-c">Born Rule · Amplitude-Phase Encoding</span>
+        </div>
+      </div>
+      <div class="step-item fade-up">
+        <div class="step-num">04</div>
+        <div>
+          <h3>9-Model Benchmark</h3>
+          <p>QSVM tested against Classical SVM, CNN1D, CNN2D, LSTM, EEGNet, DeepConvNet, and additional architectures on identical data. Statistical validation via Wilcoxon signed-rank test with Bonferroni correction.</p>
+          <span class="tag tag-g">Wilcoxon p = 0.032 · Bonferroni-Corrected</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="data-panel fade-up">
+      <h4>Dataset Profile</h4>
+      <div class="data-row"><span class="data-key">Source</span><span class="data-val">PhysioNet</span></div>
+      <div class="data-row"><span class="data-key">Subjects</span><span class="data-val">109</span></div>
+      <div class="data-row"><span class="data-key">Recordings</span><span class="data-val">654</span></div>
+      <div class="data-row"><span class="data-key">Segmented Trials</span><span class="data-val">~9,500</span></div>
+      <div class="data-row"><span class="data-key">EEG Channels</span><span class="data-val">64</span></div>
+      <div class="data-row"><span class="data-key">Sampling Rate</span><span class="data-val">160 Hz</span></div>
+      <div class="data-row"><span class="data-key">Cross-Validation</span><span class="data-val">5-Fold</span></div>
+      <div class="data-row"><span class="data-key">Significance</span><span class="data-val">p = 0.032</span></div>
+      <div class="criteria-list">
+        <h4>Engineering Criteria — All Met</h4>
+        <div class="crit-row"><span class="crit-check">✓</span><span class="crit-text"><strong>Robustness</strong> — Smaller accuracy degradation under 50% data reduction (3.8% vs 10.5%)</span></div>
+        <div class="crit-row"><span class="crit-check">✓</span><span class="crit-text"><strong>Functionality</strong> — Quantum kernel encodes EEG amplitude-phase interference confirmed via PCA</span></div>
+        <div class="crit-row"><span class="crit-check">✓</span><span class="crit-text"><strong>Specification</strong> — Statistically significant improvement at p = 0.032 (Bonferroni)</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ════════════════ RESULTS ════════════════ -->
+<section class="sec" id="results">
+  <div class="sec-num fade-up">03 · Results</div>
+  <h2 class="fade-up">Matching deep learning.<br><em>No GPU required.</em></h2>
+  <p class="sec-lead fade-up">QSVM achieved 73.4% accuracy and 81.4% F1-score — outperforming Classical SVM by 8.8pp while matching GPU-dependent deep learning on standard CPU hardware.</p>
+
+  <div class="results-grid">
+
+    <!-- Accuracy -->
+    <div class="chart-panel fade-up">
+      <div class="chart-label">Model Accuracy <span>TEST SET · n=99</span></div>
+      <div class="metric-bars">
+        <div class="bar-row highlight" data-v="73.4" data-m="80"><div class="bar-name">QSVM</div><div class="bar-track"><div class="bar-fill f-hero"></div></div><div class="bar-val">73.4%</div></div>
+        <div class="bar-row" data-v="74.1" data-m="80"><div class="bar-name">CNN2D</div><div class="bar-track"><div class="bar-fill f-close"></div></div><div class="bar-val">74.1%</div></div>
+        <div class="bar-row" data-v="72.8" data-m="80"><div class="bar-name">EEGNet</div><div class="bar-track"><div class="bar-fill f-close"></div></div><div class="bar-val">72.8%</div></div>
+        <div class="bar-row" data-v="71.5" data-m="80"><div class="bar-name">CNN1D</div><div class="bar-track"><div class="bar-fill f-other"></div></div><div class="bar-val">71.5%</div></div>
+        <div class="bar-row" data-v="69.2" data-m="80"><div class="bar-name">LSTM</div><div class="bar-track"><div class="bar-fill f-other"></div></div><div class="bar-val">69.2%</div></div>
+        <div class="bar-row" data-v="64.6" data-m="80"><div class="bar-name">Classical SVM</div><div class="bar-track"><div class="bar-fill f-other"></div></div><div class="bar-val">64.6%</div></div>
+      </div>
+    </div>
+
+    <!-- F1 -->
+    <div class="chart-panel fade-up">
+      <div class="chart-label">F1 Score <span>WILCOXON p=0.032</span></div>
+      <div class="metric-bars">
+        <div class="bar-row highlight" data-v="81.4" data-m="88"><div class="bar-name">QSVM</div><div class="bar-track"><div class="bar-fill f-hero"></div></div><div class="bar-val">81.4%</div></div>
+        <div class="bar-row" data-v="82.1" data-m="88"><div class="bar-name">CNN2D</div><div class="bar-track"><div class="bar-fill f-close"></div></div><div class="bar-val">82.1%</div></div>
+        <div class="bar-row" data-v="80.6" data-m="88"><div class="bar-name">EEGNet</div><div class="bar-track"><div class="bar-fill f-close"></div></div><div class="bar-val">80.6%</div></div>
+        <div class="bar-row" data-v="79.2" data-m="88"><div class="bar-name">CNN1D</div><div class="bar-track"><div class="bar-fill f-other"></div></div><div class="bar-val">79.2%</div></div>
+        <div class="bar-row" data-v="76.8" data-m="88"><div class="bar-name">LSTM</div><div class="bar-track"><div class="bar-fill f-other"></div></div><div class="bar-val">76.8%</div></div>
+        <div class="bar-row" data-v="74.1" data-m="88"><div class="bar-name">Classical SVM</div><div class="bar-track"><div class="bar-fill f-other"></div></div><div class="bar-val">74.1%</div></div>
+      </div>
+    </div>
+
+    <!-- Confusion matrix -->
+    <div class="chart-panel fade-up">
+      <div class="chart-label">Confusion Matrix <span>QSVM vs CLASSICAL SVM</span></div>
+      <div class="cm-layout">
+        <div>
+          <div class="cm-title" style="color:var(--text-mid)">Classical SVM</div>
+          <div class="cm-grid">
+            <div></div>
+            <div class="cm-head">Pred: Low</div>
+            <div class="cm-head">Pred: High</div>
+            <div class="cm-head" style="justify-content:flex-end;font-size:10px">Actual Low</div>
+            <div class="cm-cell c-tn-d">37<div class="cm-lbl">True Neg</div></div>
+            <div class="cm-cell c-fp-d">24<div class="cm-lbl">False Pos</div></div>
+            <div class="cm-head" style="justify-content:flex-end;font-size:10px">Actual High</div>
+            <div class="cm-cell c-fn-d">18<div class="cm-lbl">False Neg</div></div>
+            <div class="cm-cell c-tp-d">20<div class="cm-lbl">True Pos</div></div>
+          </div>
+          <div class="cm-note" style="color:var(--text-dim)">Recall ≈ 53% — misses motor commands</div>
+        </div>
+        <div>
+          <div class="cm-title" style="color:var(--cyan)">QSVM (Proposed)</div>
+          <div class="cm-grid">
+            <div></div>
+            <div class="cm-head">Pred: Low</div>
+            <div class="cm-head">Pred: High</div>
+            <div class="cm-head" style="justify-content:flex-end;font-size:10px">Actual Low</div>
+            <div class="cm-cell c-tn">52<div class="cm-lbl">True Neg</div></div>
+            <div class="cm-cell c-fp">13<div class="cm-lbl">False Pos</div></div>
+            <div class="cm-head" style="justify-content:flex-end;font-size:10px">Actual High</div>
+            <div class="cm-cell c-fn">3<div class="cm-lbl">False Neg</div></div>
+            <div class="cm-cell c-tp">31<div class="cm-lbl">True Pos</div></div>
+          </div>
+          <div class="cm-note" style="color:var(--green)">Recall = 91.3% — critical FN eliminated</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Robustness -->
+    <div class="chart-panel fade-up">
+      <div class="chart-label">Data Robustness <span>DEGRADATION UNDER REDUCTION</span></div>
+      <div style="display:flex;justify-content:center;gap:20px;margin-bottom:20px">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--cyan)"></div>QSVM</div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(90,110,140,.5)"></div>Classical SVM</div>
+      </div>
+      <div class="rob-chart" id="rob-chart-container"></div>
+      <div style="text-align:center;font-family:'Geist Mono',monospace;font-size:11px;color:var(--text-dim);margin-top:6px">At 50% data: QSVM −3.8% · Classical −10.5%</div>
+    </div>
+
+    <!-- Radar -->
+    <div class="chart-panel chart-full fade-up">
+      <div class="chart-label">Multi-Metric Performance <span>5 DIMENSIONS · QSVM vs BASELINES</span></div>
+      <div class="radar-wrap">
+        <canvas id="radar-canvas" width="600" height="300"></canvas>
+        <div class="radar-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--cyan)"></div>QSVM</div>
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(90,110,140,.65)"></div>Classical SVM</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div>CNN2D</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ════════════════ IMPACT ════════════════ -->
+<section class="sec" id="impact">
+  <div class="sec-num fade-up">04 · Real-World Impact</div>
+  <h2 class="fade-up">Why not just<br><em>use deep learning?</em></h2>
+  <p class="sec-lead fade-up">Several deep learning models scored marginally higher accuracy. Here is why that framing misses the point entirely.</p>
+
+  <div class="impact-grid">
+    <div class="impact-block fade-up">
+      <span class="impact-icon">⬡</span>
+      <h3>No GPU Required</h3>
+      <p>Deep learning requires expensive GPU hardware. The average rural clinic, field hospital, or home caregiver does not have one. QSVM runs on a standard laptop and matches deep learning accuracy — the difference between technology in a research lab and technology that reaches a patient in rural Florida or rural Kenya.</p>
+      <span class="tag tag-c">Standard CPU · Accessible</span>
+    </div>
+    <div class="impact-block fade-up">
+      <span class="impact-icon">◈</span>
+      <h3>Works With Scarce Data</h3>
+      <p>Deep learning needs thousands of labeled samples. Getting one ALS patient to produce clean EEG data takes months of clinical work. QSVM achieves 73% accuracy under 500 training samples and degrades far less when data is reduced. When labeled neurological data is scarce — which it almost always is clinically — quantum-inspired kernels are often the only viable path.</p>
+      <span class="tag tag-v">Data Efficient · Low-Resource</span>
+    </div>
+    <div class="impact-block fade-up">
+      <span class="impact-icon">◎</span>
+      <h3>FDA-Ready Interpretability</h3>
+      <p>The FDA will not approve a black-box model to control a prosthetic limb. Clinicians need to understand why a model made a decision. The quantum kernel matrix is fully interpretable — you can see exactly how similar two neural states are. Deep learning cannot offer that transparency at the required clinical resolution.</p>
+      <span class="tag tag-g">Interpretable · Regulatory</span>
+    </div>
+  </div>
+
+  <div class="big-stats fade-up">
+    <div class="big-stat"><div class="big-stat-n" style="color:var(--cyan)">15M</div><div class="big-stat-l">People needing reliable BCIs</div></div>
+    <div class="big-stat"><div class="big-stat-n" style="color:var(--violet)">91.3%</div><div class="big-stat-l">Motor imagery recall rate</div></div>
+    <div class="big-stat"><div class="big-stat-n" style="color:var(--green)">3.8%</div><div class="big-stat-l">Accuracy drop at 50% data</div></div>
+    <div class="big-stat"><div class="big-stat-n" style="color:var(--amber)">0</div><div class="big-stat-l">GPU hardware required</div></div>
+  </div>
+
+  <div class="callout fade-up">
+    <p>Our contribution is not beating deep learning on a benchmark. It is <strong>matching deep learning accuracy while solving the three problems that prevent deep learning from ever leaving the lab</strong> and reaching the patients who need it most.</p>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ════════════════ TEAM ════════════════ -->
+<section class="sec" id="team">
+  <div class="sec-num fade-up">05 · Research Team</div>
+  <h2 class="fade-up">Creekside High School,<br><em>St. Johns County</em></h2>
+  <p class="sec-lead fade-up">71st Florida State Science &amp; Engineering Fair · March 31–April 2, 2026 · Lakeland, Florida</p>
+
+  <div class="team-grid">
+    <div class="team-card fade-up">
+      <div class="team-init">ST</div>
+      <div class="team-name">Sanvi Tummala</div>
+      <div class="team-role">Lead Researcher</div>
+      <div class="team-school">Creekside High School · St. Johns, FL</div>
+    </div>
+    <div class="team-card fade-up">
+      <div class="team-init">GD</div>
+      <div class="team-name">Gurhans Dhillon</div>
+      <div class="team-role">Co-Researcher</div>
+      <div class="team-school">Creekside High School · St. Johns, FL</div>
+    </div>
+    <div class="team-card fade-up">
+      <div class="team-init">SH</div>
+      <div class="team-name">Sachith Hulikere</div>
+      <div class="team-role">Co-Researcher</div>
+      <div class="team-school">Creekside High School · St. Johns, FL</div>
+    </div>
+  </div>
+
+  <div class="tags-row fade-up">
+    <span class="tag tag-c">PhysioNet EEG Dataset</span>
+    <span class="tag tag-v">Python · Scikit-Learn</span>
+    <span class="tag tag-g">MNE-Python</span>
+    <span class="tag tag-c">Google Colab</span>
+    <span class="tag tag-v">PennyLane · Qiskit</span>
+    <span class="tag tag-g">5-Fold Cross-Validation</span>
+    <span class="tag tag-a">Wilcoxon Signed-Rank</span>
+    <span class="tag tag-c">Born Rule Kernel</span>
+    <span class="tag tag-v">Bonferroni Correction</span>
+    <span class="tag tag-g">Power Spectral Density</span>
+  </div>
+</section>
+
+<hr class="rule">
+
+<footer>
+  <div class="footer-logo"><strong>QSVM-BCI</strong> · Quantum-Inspired Machine Learning for EEG Classification</div>
+  <div class="footer-right">71st Florida SSEF · 2026<br>Creekside High School · St. Johns County, FL</div>
+</footer>
+
+<script>
+(function() {
+'use strict';
+
+// ── CURSOR ──────────────────────────────────────────────────────
+var cursor = document.getElementById('js-cursor');
+var cring  = document.getElementById('js-cring');
+var mouseX = 0, mouseY = 0, ringX = 0, ringY = 0;
+
+document.addEventListener('mousemove', function(e) {
+  mouseX = e.clientX;
+  mouseY = e.clientY;
+  cursor.style.left = mouseX + 'px';
+  cursor.style.top  = mouseY + 'px';
+});
+
+(function animRing() {
+  ringX += (mouseX - ringX) * 0.1;
+  ringY += (mouseY - ringY) * 0.1;
+  cring.style.left = ringX + 'px';
+  cring.style.top  = ringY + 'px';
+  requestAnimationFrame(animRing);
+})();
+
+var hoverEls = document.querySelectorAll('a, .chart-panel, .team-card, .prob-block, .impact-block');
+hoverEls.forEach(function(el) {
+  el.addEventListener('mouseenter', function() {
+    cursor.style.width  = '14px';
+    cursor.style.height = '14px';
+    cring.style.width   = '50px';
+    cring.style.height  = '50px';
+    cring.style.borderColor = 'rgba(0,229,255,.55)';
+  });
+  el.addEventListener('mouseleave', function() {
+    cursor.style.width  = '8px';
+    cursor.style.height = '8px';
+    cring.style.width   = '34px';
+    cring.style.height  = '34px';
+    cring.style.borderColor = 'rgba(0,229,255,.35)';
+  });
+});
+
+// ── NAV SCROLL ──────────────────────────────────────────────────
+var mainNav = document.getElementById('main-nav');
+window.addEventListener('scroll', function() {
+  mainNav.classList.toggle('scrolled', window.scrollY > 50);
+});
+
+// ── FLOATING PARTICLE BACKGROUND ────────────────────────────────
+var pCanvas = document.getElementById('particle-canvas');
+var pCtx    = pCanvas.getContext('2d');
+var particles = [];
+
+function resizeParticles() {
+  pCanvas.width  = window.innerWidth;
+  pCanvas.height = window.innerHeight;
+}
+resizeParticles();
+window.addEventListener('resize', resizeParticles);
+
+for (var i = 0; i < 60; i++) {
+  particles.push({
+    x:    Math.random() * window.innerWidth,
+    y:    Math.random() * window.innerHeight,
+    r:    0.5 + Math.random() * 1.2,
+    vx:   (Math.random() - 0.5) * 0.18,
+    vy:   (Math.random() - 0.5) * 0.18,
+    a:    Math.random()
+  });
+}
+
+function drawParticles() {
+  pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
+  particles.forEach(function(p) {
+    p.x += p.vx;
+    p.y += p.vy;
+    if (p.x < 0) p.x = pCanvas.width;
+    if (p.x > pCanvas.width) p.x = 0;
+    if (p.y < 0) p.y = pCanvas.height;
+    if (p.y > pCanvas.height) p.y = 0;
+    pCtx.beginPath();
+    pCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    pCtx.fillStyle = 'rgba(0,229,255,' + (0.15 + p.a * 0.25) + ')';
+    pCtx.fill();
+  });
+  requestAnimationFrame(drawParticles);
+}
+drawParticles();
+
+// ── EEG HERO WAVEFORM ────────────────────────────────────────────
+var eegCanvas = document.getElementById('eeg-canvas');
+var eegCtx    = eegCanvas.getContext('2d');
+var NUM_LINES = 9;
+var eegPhases  = [];
+var eegSpeeds  = [];
+var eegAmps    = [];
+var eegFreqs   = [];
+var eegColors  = ['#00e5ff','#8b5cf6','#10b981','#00e5ff','#8b5cf6','#10b981','#00e5ff','#8b5cf6','#10b981'];
+
+for (var i = 0; i < NUM_LINES; i++) {
+  eegPhases.push(i * 0.65);
+  eegSpeeds.push(0.35 + Math.random() * 0.55);
+  eegAmps.push(16 + Math.random() * 26);
+  eegFreqs.push(1.8 + Math.random() * 3.5);
+}
+
+function resizeEEG() {
+  eegCanvas.width  = window.innerWidth;
+  eegCanvas.height = window.innerHeight;
+}
+resizeEEG();
+window.addEventListener('resize', resizeEEG);
+
+function drawEEG() {
+  eegCtx.clearRect(0, 0, eegCanvas.width, eegCanvas.height);
+  for (var l = 0; l < NUM_LINES; l++) {
+    var y0 = 60 + (l + 1) * (eegCanvas.height / (NUM_LINES + 1));
+    eegCtx.beginPath();
+    for (var x = 0; x < eegCanvas.width; x += 2) {
+      var t = x / eegCanvas.width;
+      var y = y0
+        + Math.sin(t * eegFreqs[l] * Math.PI * 2 + eegPhases[l]) * eegAmps[l]
+        + Math.sin(t * eegFreqs[l] * 1.6 * Math.PI * 2 + eegPhases[l] * 0.8) * (eegAmps[l] * 0.28)
+        + Math.sin(t * 22 * Math.PI * 2 + eegPhases[l] * 2.2) * (eegAmps[l] * 0.07);
+      if (x === 0) { eegCtx.moveTo(x, y); } else { eegCtx.lineTo(x, y); }
+    }
+    eegCtx.strokeStyle  = eegColors[l];
+    eegCtx.lineWidth    = 1;
+    eegCtx.globalAlpha  = 0.5;
+    eegCtx.stroke();
+    eegCtx.globalAlpha  = 1;
+    eegPhases[l] += 0.005 * eegSpeeds[l];
+  }
+  requestAnimationFrame(drawEEG);
+}
+drawEEG();
+
+// ── SCROLL REVEAL ────────────────────────────────────────────────
+var revealObserver = new IntersectionObserver(function(entries) {
+  entries.forEach(function(entry) {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.fade-up').forEach(function(el) {
+  revealObserver.observe(el);
+});
+
+// ── COUNTER ANIMATION ────────────────────────────────────────────
+function animateCounter(el, target, decimals) {
+  var start = null;
+  var duration = 1800;
+  function step(timestamp) {
+    if (!start) start = timestamp;
+    var progress = Math.min((timestamp - start) / duration, 1);
+    var ease = 1 - Math.pow(1 - progress, 4);
+    var value = target * ease;
+    el.textContent = decimals > 0 ? value.toFixed(decimals) : Math.round(value).toString();
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+var countersStarted = false;
+var heroObserver = new IntersectionObserver(function(entries) {
+  entries.forEach(function(entry) {
+    if (entry.isIntersecting && !countersStarted) {
+      countersStarted = true;
+      document.querySelectorAll('.js-count').forEach(function(el) {
+        var target   = parseFloat(el.getAttribute('data-target'));
+        var decimals = parseInt(el.getAttribute('data-dec'), 10);
+        setTimeout(function() { animateCounter(el, target, decimals); }, 400);
+      });
+    }
+  });
+}, { threshold: 0.5 });
+heroObserver.observe(document.querySelector('.hero'));
+
+// ── BAR CHART ANIMATION ──────────────────────────────────────────
+var barsAnimated = false;
+function animateBars() {
+  if (barsAnimated) return;
+  barsAnimated = true;
+  document.querySelectorAll('.bar-row').forEach(function(row, i) {
+    var val  = parseFloat(row.getAttribute('data-v') || '0');
+    var max  = parseFloat(row.getAttribute('data-m') || '80');
+    var fill = row.querySelector('.bar-fill');
+    if (fill) {
+      setTimeout(function() {
+        fill.style.width = ((val / max) * 100) + '%';
+      }, i * 80);
+    }
+  });
+}
+
+var resultsEl = document.getElementById('results');
+var barObserver = new IntersectionObserver(function(entries) {
+  entries.forEach(function(entry) {
+    if (entry.isIntersecting) { animateBars(); }
+  });
+}, { threshold: 0.2 });
+if (resultsEl) barObserver.observe(resultsEl);
+
+// ── ROBUSTNESS CHART ─────────────────────────────────────────────
+var robData = [
+  { label: '100%', q: 73.4, c: 64.6 },
+  { label: '75%',  q: 71.8, c: 61.2 },
+  { label: '50%',  q: 69.6, c: 54.1 },
+  { label: '25%',  q: 65.2, c: 44.8 }
+];
+var MAX_ROB_H = 135;
+var robContainer = document.getElementById('rob-chart-container');
+
+robData.forEach(function(d) {
+  var group = document.createElement('div');
+  group.className = 'rob-group';
+  var qH = (d.q / 80) * MAX_ROB_H;
+  var cH = (d.c / 80) * MAX_ROB_H;
+  group.innerHTML =
+    '<div class="rob-bars-wrap">' +
+      '<div class="rob-bar rob-q" style="height:0px" data-final="' + qH + '">' +
+        '<div class="rob-bar-val">' + d.q + '%</div>' +
+      '</div>' +
+      '<div class="rob-bar rob-c" style="height:0px" data-final="' + cH + '">' +
+        '<div class="rob-bar-val">' + d.c + '%</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="rob-group-lbl">' + d.label + ' Data</div>';
+  robContainer.appendChild(group);
+});
+
+var robAnimated = false;
+var robObserver = new IntersectionObserver(function(entries) {
+  entries.forEach(function(entry) {
+    if (entry.isIntersecting && !robAnimated) {
+      robAnimated = true;
+      document.querySelectorAll('.rob-bar').forEach(function(bar, i) {
+        var finalH = bar.getAttribute('data-final');
+        setTimeout(function() {
+          bar.style.height = finalH + 'px';
+        }, i * 60);
+      });
+    }
+  });
+}, { threshold: 0.3 });
+if (robContainer) robObserver.observe(robContainer);
+
+// ── RADAR CHART ──────────────────────────────────────────────────
+var radarCanvas = document.getElementById('radar-canvas');
+var radarCtx    = radarCanvas.getContext('2d');
+var RW = 600, RH = 300;
+var RCX = RW / 2, RCY = RH / 2 + 5;
+var RADAR_R = Math.min(RW, RH) / 2 - 60;
+var RADAR_LABELS = ['Accuracy', 'F1', 'Recall', 'Precision', 'AUC'];
+var RADAR_MODELS = [
+  { name: 'QSVM',         color: '#00e5ff',              vals: [0.734, 0.814, 0.913, 0.762, 0.801] },
+  { name: 'Classical SVM',color: 'rgba(90,110,150,0.7)', vals: [0.646, 0.741, 0.532, 0.701, 0.698] },
+  { name: 'CNN2D',        color: '#f59e0b',              vals: [0.741, 0.821, 0.888, 0.771, 0.812] }
+];
+
+function radarAngle(i) {
+  return (i / RADAR_LABELS.length) * Math.PI * 2 - Math.PI / 2;
+}
+
+function drawRadar() {
+  radarCtx.clearRect(0, 0, RW, RH);
+
+  // Grid rings
+  for (var ring = 1; ring <= 5; ring++) {
+    radarCtx.beginPath();
+    RADAR_LABELS.forEach(function(_, i) {
+      var a = radarAngle(i);
+      var rr = RADAR_R * ring / 5;
+      var px = RCX + Math.cos(a) * rr;
+      var py = RCY + Math.sin(a) * rr;
+      if (i === 0) { radarCtx.moveTo(px, py); } else { radarCtx.lineTo(px, py); }
+    });
+    radarCtx.closePath();
+    radarCtx.strokeStyle = 'rgba(232,230,225,0.06)';
+    radarCtx.lineWidth = 1;
+    radarCtx.stroke();
+  }
+
+  // Spokes and labels
+  RADAR_LABELS.forEach(function(label, i) {
+    var a = radarAngle(i);
+    radarCtx.beginPath();
+    radarCtx.moveTo(RCX, RCY);
+    radarCtx.lineTo(RCX + Math.cos(a) * RADAR_R, RCY + Math.sin(a) * RADAR_R);
+    radarCtx.strokeStyle = 'rgba(232,230,225,0.08)';
+    radarCtx.lineWidth = 1;
+    radarCtx.stroke();
+    radarCtx.font = '11px "Geist Mono", monospace';
+    radarCtx.fillStyle = '#4a4845';
+    radarCtx.textAlign = 'center';
+    radarCtx.textBaseline = 'middle';
+    radarCtx.fillText(label, RCX + Math.cos(a) * (RADAR_R + 26), RCY + Math.sin(a) * (RADAR_R + 26));
+  });
+
+  // Model polygons
+  RADAR_MODELS.forEach(function(model) {
+    radarCtx.beginPath();
+    model.vals.forEach(function(val, i) {
+      var a = radarAngle(i);
+      var px = RCX + Math.cos(a) * RADAR_R * val;
+      var py = RCY + Math.sin(a) * RADAR_R * val;
+      if (i === 0) { radarCtx.moveTo(px, py); } else { radarCtx.lineTo(px, py); }
+    });
+    radarCtx.closePath();
+    radarCtx.strokeStyle = model.color;
+    radarCtx.lineWidth = 2;
+    radarCtx.stroke();
+    radarCtx.globalAlpha = 0.1;
+    radarCtx.fillStyle = model.color;
+    radarCtx.fill();
+    radarCtx.globalAlpha = 1;
+
+    // Dots
+    model.vals.forEach(function(val, i) {
+      var a = radarAngle(i);
+      radarCtx.beginPath();
+      radarCtx.arc(
+        RCX + Math.cos(a) * RADAR_R * val,
+        RCY + Math.sin(a) * RADAR_R * val,
+        4, 0, Math.PI * 2
+      );
+      radarCtx.fillStyle = model.color;
+      radarCtx.fill();
+    });
+  });
+}
+
+drawRadar();
+
+})(); // end IIFE
+</script>
+</body>
+</html>
